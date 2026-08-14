@@ -252,10 +252,10 @@ function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age, target){
         // 같은 몸 신호라도 타겟이 RELAX(8Hz)면 20Hz 공진 조건이 아니므로 안정으로 본다.
         score=30+hrvNorm*20; label='안정';
       }
-    } else if(mood==='neg'){
-      if(bpmV<60+bOff){ score=(1-hrvNorm)*10; label='무기력'; }
-      else { score=70+(1-hrvNorm)*20; label='스트레스'; }
     } else {
+      // 몰입 조건은 아니지만 HRV는 이미 충분히 높은 경우: 감정을 '나쁨'으로 시작했더라도
+      // 몸이 실제로 이완되고 있다면 그대로 반영한다. 초기 감정 선택은 참고용 출발점일 뿐,
+      // 실시간 개선을 계속 부정적 라벨에 가둬두면 바이오피드백으로서 의미가 없어진다.
       score = 10 + hrvNorm*20;
       label = '이완';
     }
