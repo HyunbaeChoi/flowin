@@ -126,7 +126,7 @@
 
   <div class="section-title" style="padding-top:14px;">지금 기분이 어떠세요?</div>
   <div class="mood-row">
-    <button class="mood-btn" id="moodNeg">나쁨</button>
+    <button class="mood-btn" id="moodNeg">좋지않음</button>
     <button class="mood-btn active" id="moodNeu">보통</button>
     <button class="mood-btn" id="moodPos">좋음</button>
   </div>
@@ -174,7 +174,7 @@
   <div class="control-row">
     <button class="ctrl-btn" id="btnIntensityTouch">강도 <span id="lvVal">1</span> · 다음단계</button>
   </div>
-  <div class="ctrl-sub">타겟: <span id="targetVal">RELAX</span> · 나쁨/보통 → 이완, 좋음 → 몰입으로 자동 유도됩니다</div>
+  <div class="ctrl-sub">타겟: <span id="targetVal">RELAX</span> · 좋지않음/보통 → 이완, 좋음 → 몰입으로 자동 유도됩니다</div>
 
   <div class="stim-badge" id="stimBadge"><span class="dot"></span><span id="stimText">자극 대기 중</span></div>
 
@@ -220,7 +220,15 @@ function adaptiveNorm(val, stat){
   return clamp01((val-stat.min)/range);
 }
 
-function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age, target){
+function bandFromScore(score){
+  if(score<10) return '무기력';
+  if(score<30) return '이완';
+  if(score<50) return '안정';
+  if(score<70) return '몰입';
+  if(score<90) return '스트레스';
+  return '불안';
+}
+function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age, target, moodAgeSec){
   if(bpmV<=0||rmssd<=0||sdnn<=0) return {score:null,label:'측정중'};
   const bOff=bpmOffsetFromAge(age||18), sOff=sdnnOffsetFromAge(age||18), rOff=rmssdOffsetFromAge(age||18);
   const highArousal=bpmV>=75+bOff, lowArousal=bpmV<55+bOff;
@@ -253,11 +261,21 @@ function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age, target){
         score=30+hrvNorm*20; label='안정';
       }
     } else {
-      // 몰입 조건은 아니지만 HRV는 이미 충분히 높은 경우: 감정을 '나쁨'으로 시작했더라도
-      // 몸이 실제로 이완되고 있다면 그대로 반영한다. 초기 감정 선택은 참고용 출발점일 뿐,
-      // 실시간 개선을 계속 부정적 라벨에 가둬두면 바이오피드백으로서 의미가 없어진다.
-      score = 10 + hrvNorm*20;
-      label = '이완';
+      // 몰입 조건은 아니지만 HRV는 이미 충분히 높은 경우.
+      // 감정을 '좋지않음'으로 선택했다면 세션 초반(약 30초)엔 그 자기 보고를 존중해
+      // 무기력/스트레스 쪽에서 시작하고, 시간이 지나며 몸이 실제로 편안해지는 게
+      // 확인되면 서서히 이완 쪽으로 자연스럽게 넘어간다. 감정 선택이 개선을 영원히
+      // 가두면 바이오피드백 의미가 없고, 반대로 시작부터 무시하면 자기 보고를 무시하는
+      // 셈이라 둘 다 문제였다 — 시간에 따라 서서히 옅어지는 방식으로 절충한다.
+      const relaxScore = 10 + hrvNorm*20;
+      if(mood==='neg'){
+        const moodAnchorScore = (bpmV<60+bOff) ? (1-hrvNorm)*10 : 70+(1-hrvNorm)*20;
+        const fade = clamp01(1 - (moodAgeSec||0)/30);
+        score = relaxScore*(1-fade) + moodAnchorScore*fade;
+      } else {
+        score = relaxScore;
+      }
+      label = bandFromScore(score);
     }
   } else if(midHRV){
     score = 30 + hrvNorm*20;
@@ -280,6 +298,7 @@ STATE_ORDER.forEach(s=>{
 let bleDevice=null, bleServer=null, bleTxChar=null, bleRxChar=null;
 let selectedMood='neu';
 let currentAge=18;
+let lastMood=null, moodSetAt=Date.now();
 let lastAcceptedBpm=68;
 const rawBuffer=[]; const SMOOTH_WINDOW_SEC=2, MOTION_ARTIFACT_MAX_DELTA_BPM=12;
 
@@ -511,8 +530,10 @@ function ingestSample(raw){
   const avgRmssd=rawBuffer.reduce((s,v)=>s+v.rmssd,0)/n;
   const avgSdnn=rawBuffer.reduce((s,v)=>s+v.sdnn,0)/n;
   const avgG30=rawBuffer.reduce((s,v)=>s+v.g30,0)/n;
+  if(raw.mood !== lastMood){ lastMood=raw.mood; moodSetAt=Date.now(); }
+  const moodAgeSec=(Date.now()-moodSetAt)/1000;
   updateHrvRange(avgRmssd, avgSdnn, avgG30);
-  const bio=bioScoreAndLabel(avgBpm, avgRmssd, avgSdnn, avgG30, raw.mood, currentAge, raw.target);
+  const bio=bioScoreAndLabel(avgBpm, avgRmssd, avgSdnn, avgG30, raw.mood, currentAge, raw.target, moodAgeSec);
   const rawState=bio.label;
   const state=stabilizeState(rawState);
 
