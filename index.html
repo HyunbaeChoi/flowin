@@ -119,7 +119,7 @@
   <header>
     <div>
       <div class="brand">FLOW<span>in</span> 개플</div>
-      <div class="brand-sub">실시간 HRV 모니터</div>
+      <div class="brand-sub">실시간 HRV 모니터 · v1</div>
     </div>
     <button id="connectBtn"><span class="dot"></span><span id="connectLabel">기기 연결</span></button>
   </header>
@@ -258,6 +258,10 @@ function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age){
       // 긴장(스트레스)에 더 가깝다. 이완/무기력 구분과 같은 원리다.
       if(mood==='neg'){ score = 70 + (1-hrvNorm)*20; label = '스트레스'; }
       else { score = 50 + hrvNorm*20; label = '몰입'; }
+    } else if(bpmV>=55+bOff && bpmV<60+bOff){
+      // 60bpm 문턱 바로 아래 완충구간: 호흡 때문에 심박이 59~61 사이로 자연스럽게
+      // 흔들리기만 해도 이완↔몰입이 직접 왕복하지 않고, 안정을 거쳐서 넘어가게 한다.
+      score = 30 + hrvNorm*20; label = '안정';
     } else {
       // 낮은 각성 + 괜찮은 HRV는 '이완'과 '무기력'이 몸 신호만으론 구분이 안 된다.
       // 둘의 차이는 긍정/부정(valence)인데, 이건 몸이 아니라 자기 보고로만 알 수 있다.
