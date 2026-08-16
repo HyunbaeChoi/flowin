@@ -636,11 +636,15 @@ function setConnectUI(on){
 function onBleTelemetry(evt){
   const text=new TextDecoder('utf-8').decode(evt.target.value);
   let d; try{ d=JSON.parse(text); }catch(e){ return; }
+  const actualMood = d.mood==='NEG'?'neg': d.mood==='POS'?'pos':'neu';
   ingestSample({
     bpm:d.bpm, rmssd:d.rmssd, sdnn:d.sdnn, g30:d.g30,
-    mood: d.mood==='NEG'?'neg': d.mood==='POS'?'pos':'neu',
+    mood: actualMood,
     fingerOn:d.fingerOn, stimOn:d.stimOn, stimLevel:d.stimLevel, target:d.target, deviceState:d.state
   });
+  // 버튼 하이라이트는 클릭 시 낙관적으로 먼저 바뀌지만, 기기가 실제로 보내는 값이
+  // 항상 최종 진실이다. 전송 실패/지연으로 어긋나 있었다면 여기서 바로잡는다.
+  setMoodUI(actualMood);
   if(typeof d.age==='number' && document.activeElement!==ageInputEl){
     ageInputEl.value=d.age; currentAge=d.age; updateAgeOffsetLabel(d.age);
   }
