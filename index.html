@@ -253,11 +253,17 @@ function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age){
     label = '무기력';
   } else if(highHRV){
     if(bpmV>=60+bOff && bpmV<=78+bOff && g30>=25){
-      score = 50 + hrvNorm*20;
-      label = '몰입';
+      // 몰입은 심리학적으로 최적 각성 + 긍정/중립 정서가 함께 있어야 성립하는 상태다.
+      // 같은 몸 신호라도 감정이 '나쁨'이면 몰입이 아니라, 애쓰지만 즐겁지 않은
+      // 긴장(스트레스)에 더 가깝다. 이완/무기력 구분과 같은 원리다.
+      if(mood==='neg'){ score = 70 + (1-hrvNorm)*20; label = '스트레스'; }
+      else { score = 50 + hrvNorm*20; label = '몰입'; }
     } else {
-      score = 10 + hrvNorm*20;
-      label = '이완';
+      // 낮은 각성 + 괜찮은 HRV는 '이완'과 '무기력'이 몸 신호만으론 구분이 안 된다.
+      // 둘의 차이는 긍정/부정(valence)인데, 이건 몸이 아니라 자기 보고로만 알 수 있다.
+      // 그래서 이 지점만은 감정을 실시간 정보원으로 쓴다(천장이 아니라, 지금 순간의 판단 재료).
+      if(mood==='neg'){ score = (1-hrvNorm)*10; label = '무기력'; }
+      else { score = 10 + hrvNorm*20; label = '이완'; }
     }
   } else if(midHRV){
     score = 30 + hrvNorm*20;
