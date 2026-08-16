@@ -250,7 +250,16 @@ function bioScoreAndLabel(bpmV, rmssd, sdnn, g30, mood, age, target, moodAgeSec)
     label = '무기력';
   } else if(highHRV){
     if(bpmV>=60+bOff && bpmV<=78+bOff && g30>=25){
-      if(mood==='neg'){ score=70+(1-hrvNorm)*20; label='스트레스'; }
+      if(mood==='neg'){
+        // 이 구간도 다른 분기와 똑같이 30초에 걸쳐 스트레스→안정으로 서서히 넘어간다.
+        // 다만 '몰입'까지는 여전히 막는다 — 자기 보고가 나쁜데 몰입이라 하는 건
+        // 너무 강한 긍정 주장이라서다.
+        const calmScore = 30 + hrvNorm*20; // 안정 대역(최대치가 몰입 문턱 바로 아래)
+        const stressAnchor = 70 + (1-hrvNorm)*20;
+        const fade = clamp01(1 - (moodAgeSec||0)/30);
+        score = calmScore*(1-fade) + stressAnchor*fade;
+        label = bandFromScore(score);
+      }
       else if(target==='FLOW'){
         // 몸 신호가 좋아도, 실제로 20Hz 공진 자극(FLOW 타겟)이 걸려있을 때만 몰입으로 인정한다.
         // 뇌파를 직접 측정하진 못하지만, 20Hz 자극이 뇌-미주신경 공진을 유도하는 조건이라는
