@@ -174,7 +174,7 @@
   <div class="control-row">
     <button class="ctrl-btn" id="btnIntensityTouch">강도 <span id="lvVal">1</span> · 다음단계</button>
   </div>
-  <div class="ctrl-sub">타겟: <span id="targetVal">RELAX</span> · 좋지않음/보통 → 이완, 좋음 → 몰입으로 자동 유도됩니다</div>
+  <div class="ctrl-sub">타겟: <span id="targetVal">RELAX</span> · 좋지않음 → 이완/안정, 보통·좋음 → 낮엔 몰입 지향, 밤엔 이완 지향</div>
 
   <div class="stim-badge" id="stimBadge"><span class="dot"></span><span id="stimText">자극 대기 중</span></div>
 
@@ -624,6 +624,8 @@ async function bleConnect(){
     bleTxChar.addEventListener('characteristicvaluechanged', onBleTelemetry);
     setConnectUI(true);
     showToast('개플 기기 연결됨');
+    bleWrite('HOUR:'+new Date().getHours());
+    setInterval(()=>{ if(bleRxChar) bleWrite('HOUR:'+new Date().getHours()); }, 5*60*1000);
   }catch(err){ console.error(err); alert('BLE 연결 실패: '+err.message); }
 }
 function setConnectUI(on){
